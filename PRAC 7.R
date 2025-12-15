@@ -1,16 +1,5 @@
-# ================================================
-# PRACTICAL: Selecting and Dropping Variables using select()
-# Dataset: Global Air Pollution Dataset
-# ================================================
 
-# ---------------------------
-# 1. Load library
-# ---------------------------
 library(dplyr)
-
-# ---------------------------
-# 2. Import dataset from ZIP
-# ---------------------------
 global_air <- read.csv(
   unz("D:/S076/global air pollution dataset.csv.zip",
       "global air pollution dataset.csv")
@@ -18,10 +7,6 @@ global_air <- read.csv(
 
 # View data
 head(global_air)
-
-# ================================================
-# 3. SELECTING VARIABLES  (choose specific columns)
-# ================================================
 
 # Example: Select Country, City, AQI.Value
 air_selected <- global_air %>% 
@@ -34,10 +19,6 @@ pm_data <- global_air %>%
   select(starts_with("PM"))
 
 head(pm_data)
-
-# ================================================
-# 4. DROPPING VARIABLES  (remove columns)
-# ================================================
 
 # Example: Drop CO.AQI.Value and CO.AQI.Category
 air_dropped <- global_air %>% 
@@ -57,6 +38,4 @@ air_no_pm <- global_air %>%
 
 head(air_no_pm)
 
-# ================================================
-# END OF PRACTICAL
-# ================================================
+
