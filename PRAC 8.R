@@ -1,9 +1,5 @@
-# -------------------------------
 
 # R Script: Read CSV from ZIP and Clean Data
-
-# -------------------------------
-
 library(readr)   # For read_csv
 library(dplyr)   # For data manipulation
 library(tidyr)   # For replace_na()
@@ -44,3 +40,4 @@ global_air_clean <- global_air %>%
 
 cat("Total remaining NAs:", sum(is.na(global_air_clean)), "\n")
 head(global_air_clean)
+
