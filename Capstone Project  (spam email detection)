@@ -1,0 +1,105 @@
+
+# Load libraries
+library(tm); library(SnowballC); library(text2vec)
+library(Matrix); library(caret); library(e1071)
+library(ggplot2)
+
+# Load dataset
+data <- read.csv("mail_data.csv", stringsAsFactors=FALSE)
+colnames(data) <- c("label","text")
+data <- na.omit(data)
+data$label <- ifelse(data$label=="spam",1,0)
+
+
+# Text preprocessing
+corpus <- VCorpus(VectorSource(data$text))
+corpus <- tm_map(corpus, content_transformer(tolower))
+corpus <- tm_map(corpus, removePunctuation)
+corpus <- tm_map(corpus, removeNumbers)
+corpus <- tm_map(corpus, removeWords, stopwords("english"))
+corpus <- tm_map(corpus, stemDocument)
+corpus <- tm_map(corpus, stripWhitespace)
+data$clean_text <- sapply(corpus, as.character)
+
+
+# Vectorization + TF-IDF
+it <- itoken(data$clean_text, tokenizer=word_tokenizer)
+vocab <- create_vocabulary(it)
+vectorizer <- vocab_vectorizer(vocab)
+dtm <- create_dtm(it, vectorizer)
+tfidf <- TfIdf$new(); X <- fit_transform(dtm, tfidf)
+
+
+# Train-test split
+y <- as.factor(data$label)
+set.seed(42)
+trainIndex <- createDataPartition(y, p=0.8, list=FALSE)
+X_train <- X[trainIndex,]; X_test <- X[-trainIndex,]
+y_train <- y[trainIndex]; y_test <- y[-trainIndex]
+
+# Train SVM model
+model <- svm(X_train, y_train, kernel="linear", cost=1)
+
+# Test and Accuracy
+pred <- predict(model, X_test)
+accuracy <- mean(pred == y_test)
+cat("Model Accuracy:", round(accuracy*100,2), "%\n")
++ 
+# Bar graph of Ham vs Spam
+summary_df <- as.data.frame(table(data$label))
+colnames(summary_df) <- c("Type","Count")
+summary_df$Type <- factor(summary_df$Type, levels=c(0,1), labels=c("Ham","Spam"))
+summary_df$Perc <- round(summary_df$Count/sum(summary_df$Count)*100,1)
+
+ggplot(summary_df, aes(Type, Count, fill=Type)) +
+  geom_bar(stat="identity", color="black") +
+  geom_text(aes(label=paste0(Count," (",Perc,"%)")), vjust=-0.5, size=5) +
+  scale_fill_manual(values=c("skyblue","salmon")) +
+  labs(title="Ham vs Spam Emails", x="Email Type", y="Number of Emails") +
+  theme_minimal() + theme(legend.position="none")
+
+# Pie chart for Accuracy
+accuracy_df <- data.frame(
+  Type = c("Correct","Incorrect"),
+  Count = c(sum(pred==y_test), sum(pred!=y_test))
+)
+accuracy_df$Perc <- round(accuracy_df$Count / sum(accuracy_df$Count) * 100, 1)
+
+ggplot(accuracy_df, aes(x="", y=Count, fill=Type)) +
+  geom_bar(width=1, stat="identity", color="black") +
+  coord_polar(theta="y") +
+  geom_text(aes(label=paste0(Perc,"%")), position=position_stack(vjust=0.5), size=5) +
+  scale_fill_manual(values=c("forestgreen","tomato")) +
+  labs(title="Model Prediction Accuracy") +
+  theme_void()
+
+
+# Accuracy and other metrics
+conf <- confusionMatrix(pred, y_test, positive="1")  # '1' = spam
+cat("Accuracy: ", round(conf$overall['Accuracy']*100,2), "%\n")
+cat("Sensitivity (Recall for Spam): ", round(conf$byClass['Sensitivity']*100,2), "%\n")
+cat("Specificity (Ham correctly classified): ", round(conf$byClass['Specificity']*100,2), "%\n")
+cat("Precision (Spam predicted correctly): ", round(conf$byClass['Precision']*100,2), "%\n")
+cat("F1-Score: ", round(conf$byClass['F1']*100,2), "%\n")
+
+# Test new email
+new_mail <- "Congratulations you won a free lottery ticket"
+
+# Preprocess new email exactly like training
+new_corpus <- VCorpus(VectorSource(new_mail))
+new_corpus <- tm_map(new_corpus, content_transformer(tolower))
+new_corpus <- tm_map(new_corpus, removePunctuation)
+new_corpus <- tm_map(new_corpus, removeNumbers)
+new_corpus <- tm_map(new_corpus, removeWords, stopwords("english"))
+new_corpus <- tm_map(new_corpus, stemDocument)
+new_corpus <- tm_map(new_corpus, stripWhitespace)
+new_text <- sapply(new_corpus, as.character)
+
+# Vectorize and use same TF-IDF
+new_it <- itoken(new_text, tokenizer=word_tokenizer)
+new_dtm <- create_dtm(new_it, vectorizer)
+new_tfidf <- tfidf$transform(new_dtm)
+
+# Predict
+prediction <- predict(model, new_tfidf)
+cat("New email prediction:", ifelse(prediction==1,"Spam Email","Ham Email"))
